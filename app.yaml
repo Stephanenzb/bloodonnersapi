@@ -1,0 +1,11 @@
+runtime: python39
+
+# Indiquer le chemin vers le point d'entrée principal de votre application FastAPI
+entrypoint: uvicorn app.main:app --host=0.0.0.0 --port=8080
+
+# Vous pouvez spécifier les options d'échelle et de mémoire ici
+instance_class: F2
+
+# Spécifiez les bibliothèques requises
+env_variables:
+  UVICORN_PORT: 8080
