@@ -81,11 +81,16 @@ async def update_donor_history(donor_history: DonorHistory, email: str = Depends
         raise HTTPException(status_code=500, detail=f"Erreur lors de la mise à jour de l'historique de dons : {e}")
 
 
-# Route GET pour récupérer les informations du donneur via son email
-@router.get("/donors/{email}")
-async def get_donor_info(email: str):
+@router.get("/donors/me")
+async def get_donor_info(token: str = Depends(oauth2_scheme)):
     try:
-        result = elastic.search(index="database_users", body={
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        email = payload.get("sub")
+        
+        if email is None:
+            raise HTTPException(status_code=401, detail="Non authentifié")
+
+        result = await elastic.search(index="database_users", body={
             "query": {
                 "match": {
                     "email": email
@@ -96,7 +101,18 @@ async def get_donor_info(email: str):
         if not result['hits']['hits']:
             raise HTTPException(status_code=404, detail="Donneur non trouvé")
 
-        return result['hits']['hits'][0]["_source"]
+        user_data = result['hits']['hits'][0]["_source"]
+        donor_history = user_data.get("donor_history", {})
+
+        return {
+            "username": user_data.get("username", "Non renseigné"),
+            "points": user_data.get("points", 0),
+            "nextAppointment": user_data.get("nextAppointment", "Aucun rendez-vous prévu."),
+            "firstDonationDate": donor_history.get("firstDonationDate", "Non renseignée"),
+            "numberOfDonations": donor_history.get("numberOfDonations", 0),
+            "totalVolume": donor_history.get("totalVolumeDonated", 0),
+            "lastDonationDate": donor_history.get("lastDonationDate", "Non renseignée"),
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors de la récupération des informations du donneur : {e}")

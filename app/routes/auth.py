@@ -44,6 +44,7 @@ async def register_user(user: User):
 
         # Enregistrement dans Elasticsearch
         user_data = {
+            "username" : user.username,
             "email": user.email,
             "password": user.password,  
             "role": user.role,
