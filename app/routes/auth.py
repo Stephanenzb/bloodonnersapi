@@ -1,6 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from elasticsearch import Elasticsearch, AsyncElasticsearch
+from jose import JWTError, jwt
+import secrets
+from pydantic import BaseModel
+from datetime import datetime, timedelta
+import math
+
 
 router = APIRouter()
 
@@ -20,6 +26,19 @@ elastic = AsyncElasticsearch(
     cloud_id="b01a042efef84182a85f799130f733f5:ZXVyb3BlLXdlc3QzLmdjcC5jbG91ZC5lcy5pbzo0NDMkNTU3NDM0YTQxNDI0NGVlYzk0NDUzZWM2YWIxZjc3N2EkNWY1ZDA0ZjVkMDAwNDc2MGFjOWUwMjYyZTk0ZTBjZjI=",
     http_auth=("elastic", "bvfN5fngmOAhCViV4cuVcHIX"),
 )
+
+SECRET_KEY = "ton_secret_key"  # A stocker dans les variables d'environnement
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 
 
 
@@ -70,6 +89,9 @@ async def register_user(user: User):
 
 # Route de connexion 
 
+from datetime import datetime, timedelta
+
+
 @router.post("/login")
 async def login_user(email: str, password: str):
     result = await elastic.search(index="database_users", body={
@@ -84,7 +106,12 @@ async def login_user(email: str, password: str):
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
     user_data = result['hits']['hits'][0]["_source"]
+    
     if user_data["password"] != password:
         raise HTTPException(status_code=400, detail="Mot de passe incorrect")
+    
+    # Créer le jeton JWT
+    expiration = datetime.utcnow() + timedelta(minutes=30)  # Token valide pendant 30 minutes
+    token = jwt.encode({"email": user_data["email"], "exp": expiration}, SECRET_KEY, algorithm="HS256")
 
-    return {"message": "Connexion Réussie", "user": user_data}
+    return {"token": token}
