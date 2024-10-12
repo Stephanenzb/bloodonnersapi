@@ -50,18 +50,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 
+import logging
 @router.get("/donors/me/{email}")
 async def get_user(email: str):
-    result = elastic.search(index="database_users", body={
-        "query": {
-            "term": {"email.keyword": email}
-        }
-    })
+    try:
+        result = elastic.search(index="database_users", body={
+            "query": {
+                "term": {"email.keyword": email}
+            }
+        })
+    except Exception as e:
+        logging.error(f"Erreur lors de la recherche Elasticsearch : {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
     
     if not result['hits']['hits']:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     
-    return result['hits']['hits'][0]['_source']  # Renvoie toutes les données de l'utilisateur
+    return result['hits']['hits'][0]['_source']
+
 
     
 
