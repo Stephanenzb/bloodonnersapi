@@ -50,7 +50,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 
-@router.get("/api/donors/me/{email}")
+@router.get("/donors/me/{email}")
 async def get_user(email: str):
     result = elastic.search(index="database_users", body={
         "query": {
