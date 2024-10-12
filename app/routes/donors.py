@@ -6,6 +6,7 @@ import secrets
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import math
+import logging
 
 
 app = FastAPI()
@@ -50,23 +51,36 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 
-import logging
-@router.get("/donors/me/{email}")
-async def get_user(email: str):
+
+@router.get("/users/{email}")
+async def get_user_by_email(email: str):
     try:
-        result = elastic.search(index="database_users", body={
+        result = await elastic.search(index="database_users", body={
             "query": {
-                "term": {"email.keyword": email}
+                "match": {
+                    "email": email
+                }
             }
         })
+
+        # Vérifier si l'utilisateur existe
+        if result['hits']['total']['value'] == 0:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+        user = result['hits']['hits'][0]["_source"]
+        return {"user": user}
+
     except Exception as e:
-        logging.error(f"Erreur lors de la recherche Elasticsearch : {e}")
-        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
-    
-    if not result['hits']['hits']:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    
-    return result['hits']['hits'][0]['_source']
+        print(f"Erreur dans l'extraction de l'utilisateur: {e}")
+        raise HTTPException(status_code=500, detail=str(e))  # Inclure le message d'erreur
+
+
+
+
+
+
+
+
 
 
     
@@ -78,9 +92,9 @@ async def get_user(email: str):
 @router.get("/donors/me2")
 async def get_donor_info2():
     try:
-        email = "test@gmail.com"  # Remplace par l'email souhaité
+        email = "nzb@gmail.com"  
 
-        result = elastic.search(index="database_users", body={  # Retire `await`
+        result = elastic.search(index="database_users", body={  
             "query": {
                 "match": {
                     "email": email
@@ -97,7 +111,7 @@ async def get_donor_info2():
         return {
             "username": user_data.get("username"),
             "points": user_data.get("points", 0),
-            "nextAppointment": "Aucun rendez-vous prévu.",  # Remplace par la logique pour le prochain rendez-vous
+            "nextAppointment": "Aucun rendez-vous prévu.", 
             "firstDonationDate": donor_history.get("firstDonationDate", "Non renseignée"),
             "numberOfDonations": donor_history.get("numberOfDonations", 0),
             "totalVolume": donor_history.get("totalVolumeDonated", 0),
