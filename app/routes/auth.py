@@ -110,8 +110,6 @@ async def login_user(email: str, password: str):
     if user_data["password"] != password:
         raise HTTPException(status_code=400, detail="Mot de passe incorrect")
     
-    # Créer le jeton JWT
-    expiration = datetime.utcnow() + timedelta(minutes=30)  # Token valide pendant 30 minutes
-    token = jwt.encode({"email": user_data["email"], "exp": expiration}, SECRET_KEY, algorithm="HS256")
+    # Renvoie le rôle et le jeton
+    return {"token": "JWT_TOKEN_HERE", "role": user_data["role"]}
 
-    return {"token": token}

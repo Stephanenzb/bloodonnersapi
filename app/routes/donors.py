@@ -25,33 +25,11 @@ SECRET_KEY = "votre_cle_secrete"  # Remplacez par votre clé secrète
 ALGORITHM = "HS256"  # Algorithme de cryptage
 
 
-# Modèle pour valider les données du formulaire d'historique de dons
-class DonorHistory(BaseModel):
-    firstDonationDate: datetime
-    lastDonationDate: datetime
-    totalDonations: int
-    totalVolume: float
-    email: str
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# PAGE D'ACCUEIL DES DONNEURS
 
-# Fonction pour décoder le token
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Utilisateur non authentifié")
-        return email
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token invalide")
-    
-
-
-
-
-
+# RECUPERER LES INFORMATIONS DE LA TABLE DES UTILISATEURS
 @router.get("/users/{email}")
 async def get_user_by_email(email: str):
     try:
@@ -73,28 +51,117 @@ async def get_user_by_email(email: str):
     except Exception as e:
         print(f"Erreur dans l'extraction de l'utilisateur: {e}")
         raise HTTPException(status_code=500, detail=str(e))  # Inclure le message d'erreur
-
-
-
-
-
-
-
-
-
-
     
 
 
-
-
-
-@router.get("/donors/me2")
-async def get_donor_info2():
+# RECUPERER LES INFORMATIONS DE LA TABLE DES RENDEZ VOUS
+@router.get("/appointment/{email}")
+async def get_appointment_by_email(email: str):
     try:
-        email = "nzb@gmail.com"  
+        result = await elastic.search(index="appointments", body={
+            "query": {
+                "match": {
+                    "donorEmail": email,
+                }
+            }
+        })
 
-        result = elastic.search(index="database_users", body={  
+        # Vérifier si l'utilisateur existe
+        if result['hits']['total']['value'] == 0:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+        user = result['hits']['hits'][0]["_source"]
+        return {"user": user}
+
+    except Exception as e:
+        print(f"Erreur dans l'extraction de l'utilisateur: {e}")
+        raise HTTPException(status_code=500, detail=str(e))  # Inclure le message d'erreur
+
+
+
+
+# PAGE DE PRISE DE RENDEZ VOUS
+
+# Modèle de rendez-vous
+class Appointment(BaseModel):
+    dateRendezVous: str
+    timeRendezVous: str
+    status: str
+
+
+# Route POST pour créer un rendez-vous
+@router.post("/{email}/appointments")
+async def create_appointment(email: str, appointment: Appointment):
+    # Conversion de la date du rendez-vous en objet datetime
+    appointment_date = datetime.strptime(appointment.dateRendezVous, "%Y-%m-%d")
+
+    # Vérification que la date n'est pas dans le passé
+    if appointment_date < datetime.now():
+        raise HTTPException(status_code=400, detail="La date du rendez-vous doit être ultérieure à la date actuelle.")
+
+    try:
+        # Vérifier s'il existe déjà un rendez-vous programmé pour cet utilisateur
+        search_response = await elastic.search(
+            index="appointments",
+            body={
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"term": {"donorEmail": email}},
+                            {"term": {"status": "Programmé"}}
+                        ]
+                    }
+                }
+            }
+        )
+
+        # Si un rendez-vous programmé existe déjà, retourner un message d'erreur sans le code HTTP dans le détail
+        if search_response['hits']['total']['value'] > 0:
+            raise HTTPException(status_code=400, detail="Vous avez déjà un rendez-vous programmé.")
+
+        # Créer une nouvelle entrée dans Elasticsearch si aucun rendez-vous existant
+        response = await elastic.index(
+            index='appointments',
+            body={
+                "donorEmail": email,
+                "dateRendezVous": appointment.dateRendezVous,
+                "timeRendezVous": appointment.timeRendezVous,
+                "status": "Programmé"
+            }
+        )
+        return {"message": "Rendez-vous créé avec succès", "appointmentId": response["_id"]}
+
+    except HTTPException as http_err:
+        # Capturer l'exception HTTP sans afficher le code d'erreur
+        raise HTTPException(status_code=http_err.status_code, detail=http_err.detail)
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la création du rendez-vous : {e}")
+
+
+
+# PAGE DE MISE A JOUR DE L'HISTORIQUE DES DONS
+
+
+def calculate_months_since(date_str):
+    if not date_str:
+        return 0  # Ou une autre valeur par défaut
+    date = datetime.strptime(date_str, '%Y-%m-%d')
+    current_date = datetime.now()
+    years_diff = current_date.year - date.year
+    months_diff = current_date.month - date.month
+    total_months = years_diff * 12 + months_diff
+    return total_months
+
+
+
+
+
+@router.put("/donors_history/{email}")
+async def update_donor(email: str, donor_data: dict):
+    try:
+        # Recherche l'utilisateur par email
+        result = await elastic.search(index="database_users", body={
             "query": {
                 "match": {
                     "email": email
@@ -102,229 +169,40 @@ async def get_donor_info2():
             }
         })
 
-        if not result['hits']['hits']:
+        if result['hits']['total']['value'] == 0:
             raise HTTPException(status_code=404, detail="Donneur non trouvé")
-
-        user_data = result['hits']['hits'][0]["_source"]
-        donor_history = user_data.get("donor_history", {})
         
-        return {
-            "username": user_data.get("username"),
-            "points": user_data.get("points", 0),
-            "nextAppointment": "Aucun rendez-vous prévu.", 
-            "firstDonationDate": donor_history.get("firstDonationDate", "Non renseignée"),
-            "numberOfDonations": donor_history.get("numberOfDonations", 0),
-            "totalVolume": donor_history.get("totalVolumeDonated", 0),
-            "lastDonationDate": donor_history.get("lastDonationDate", "Non renseignée"),
-        }
+        print(f"First Donation Date: {donor_data.get('firstDonationDate')}")
+        print(f"Last Donation Date: {donor_data.get('lastDonationDate')}")
+        print(f"Donor Data: {donor_data}")
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la récupération des informations du donneur : {e}")
 
+        # Calcule les mois depuis le premier et le dernier don
+        months_since_first = donor_data.get("donor_history").get("monthsSinceFirstDonation")
+        months_since_last = donor_data.get("donor_history").get("monthsSinceLastDonation")
 
 
+        doc_id = result['hits']['hits'][0]['_id']
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Modèle de rendez-vous
-class Appointment(BaseModel):
-    dateRendezVous: datetime
-    timeRendezVous: str  # format HH:MM
-
-# Route POST pour créer un rendez-vous
-@router.post("/{email}/appointments")
-async def create_appointment(appointment: Appointment, email: str = Depends(get_current_user)):
-    try:
-        # Créer une entrée dans Elasticsearch avec le statut par défaut "prévu"
-        response = elastic.index(
-            index='appointments',
-            body={
-                "donneurEmail": email,
-                "dateRendezVous": appointment.dateRendezVous,
-                "timeRendezVous": appointment.timeRendezVous,
-                "status": "prévu"
+        update_response = await elastic.update(index="database_users", id=doc_id, body={
+            "doc": {
+                "donor_history": {
+                    "numberOfDonations": donor_data.get("donor_history").get("numberOfDonations"),
+                    "totalVolumeDonated": donor_data.get("donor_history").get("totalVolumeDonated"),
+                    "firstDonationDate": donor_data.get("donor_history").get("firstDonationDate"),
+                    "lastDonationDate": donor_data.get("donor_history").get("lastDonationDate"),
+                    "monthsSinceFirstDonation": months_since_first,
+                    "monthsSinceLastDonation": months_since_last
+                }
             }
-        )
-        return {"message": "Rendez-vous créé avec succès", "appointmentId": response["_id"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la création du rendez-vous : {e}")
+        })  
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Fonction pour calculer l'écart en mois entre deux dates
-def calculate_months_between(date1: datetime, date2: datetime) -> int:
-    return (date2.year - date1.year) * 12 + date2.month - date1.month
-
-# Route POST pour enregistrer l'historique de don dans Elasticsearch
-@router.post("/donor/history")
-async def update_donor_history(donor_history: DonorHistory, email: str = Depends(get_current_user)):
-    try:
-        today = datetime.now()
-        months_since_first_donation = calculate_months_between(donor_history.firstDonationDate, today)
-        months_since_last_donation = calculate_months_between(donor_history.lastDonationDate, today)
-
-        # Préparation des données à insérer dans Elasticsearch
-        donor_history_data = { 
-            "firstDonationDate": donor_history.firstDonationDate,
-            "lastDonationDate": donor_history.lastDonationDate,
-            "totalVolumeDonated": donor_history.totalVolume,
-            "numberOfDonations": donor_history.totalDonations,
-            "monthsSinceFirstDonation": months_since_first_donation,
-            "monthsSinceLastDonation": months_since_last_donation,
-        }
-
-        # Insertion ou mise à jour dans l'index Elasticsearch
-        response = elastic.index(
-            index='database_users',
-            body=donor_history_data,
-            id=email  
-        )
-
-        return {
-            "message": "Historique de dons mis à jour avec succès",
-            "data": response
-        }
+        return {"message": f"Informations de {email} mises à jour"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la mise à jour de l'historique de dons : {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour: " + str(e))
+
+
+
