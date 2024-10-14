@@ -1,9 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from elasticsearch import Elasticsearch
 from datetime import datetime, timedelta
-import pytz
-timezone = pytz.timezone('Europe/Paris') 
-local_time = datetime.now(timezone)
 
 
 router = APIRouter()
@@ -152,7 +149,7 @@ def calculate_months_since(date_str):
     if date_str:
         # Logique pour calculer les mois depuis la date fournie
         first_date = datetime.strptime(date_str, '%Y-%m-%d')
-        now = datetime.now(timezone)
+        now = datetime.now()
         return (now.year - first_date.year) * 12 + now.month - first_date.month
     return 0  # Valeur par défaut si la date est None
 
@@ -174,7 +171,7 @@ def calculate_months_since(date_str):
 async def get_appointments():
     appointments = elastic.search(index="appointments", body={"query": {"match_all": {}}})
     
-    current_datetime = datetime.now(timezone)
+    current_datetime = datetime.now()
     
     for appointment in appointments['hits']['hits']:
         # Convertir la date et l'heure du rendez-vous
