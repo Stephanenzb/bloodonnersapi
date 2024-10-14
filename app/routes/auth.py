@@ -89,9 +89,6 @@ async def register_user(user: User):
 
 # Route de connexion 
 
-from datetime import datetime, timedelta
-
-
 @router.post("/login")
 async def login_user(email: str, password: str):
     result = await elastic.search(index="database_users", body={
