@@ -27,7 +27,7 @@ elastic = AsyncElasticsearch(
     http_auth=("elastic", "bvfN5fngmOAhCViV4cuVcHIX"),
 )
 
-SECRET_KEY = "ton_secret_key"  # A stocker dans les variables d'environnement
+SECRET_KEY = "secret_key"  # A stocker dans les variables d'environnement
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

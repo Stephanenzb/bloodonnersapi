@@ -1,6 +1,18 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import FastAPI,APIRouter, HTTPException
 from elasticsearch import Elasticsearch
 from datetime import datetime, timedelta
+import joblib 
+import numpy as np
+import os
+import uvicorn
+import pandas as pd
+from google.cloud import storage
+from pydantic import BaseModel
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import StandardScaler
+
+
+app = FastAPI()
 
 
 router = APIRouter()
@@ -144,14 +156,13 @@ async def update_donor(email: str, donor_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour : " + str(e))
 
-# Assurez-vous que la fonction de calcul des mois soit définie
 def calculate_months_since(date_str):
     if date_str:
         # Logique pour calculer les mois depuis la date fournie
         first_date = datetime.strptime(date_str, '%Y-%m-%d')
         now = datetime.now()
         return (now.year - first_date.year) * 12 + now.month - first_date.month
-    return 0  # Valeur par défaut si la date est None
+    return 0  
 
 
 
@@ -271,47 +282,10 @@ async def update_appointment(donorEmail: str, updatedData: dict):
 
 
 
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Lancer une notification
 @router.post("/admin/notify")
 async def notify_donor(email: str, message: str):
-    # Logique pour envoyer une notification
     return {"message": "Notification envoyée au donneur", "email": email}
-
-
-
-
-# Lancer la probabilité
-@router.get("/admin/probabilities")
-async def analyze_probabilities():
-    # Logique pour analyser et récupérer les probabilités de dons
-    return {"message": "Probabilités analysées"}
-
-
-
-
-
-
 
 
 

@@ -21,8 +21,8 @@ elastic = AsyncElasticsearch(
 )
 
 
-SECRET_KEY = "votre_cle_secrete"  # Remplacez par votre clé secrète
-ALGORITHM = "HS256"  # Algorithme de cryptage
+SECRET_KEY = "cle_secrete"  
+ALGORITHM = "HS256" 
 
 
 
@@ -50,7 +50,7 @@ async def get_user_by_email(email: str):
 
     except Exception as e:
         print(f"Erreur dans l'extraction de l'utilisateur: {e}")
-        raise HTTPException(status_code=500, detail=str(e))  # Inclure le message d'erreur
+        raise HTTPException(status_code=500, detail=str(e)) 
     
 
 
@@ -61,7 +61,7 @@ async def get_appointment_by_email(email: str):
         result = await elastic.search(index="appointments", body={
             "query": {
                 "match": {
-                    "donorEmail": email,
+                    "donorEmail": email
                 }
             }
         })
@@ -75,7 +75,7 @@ async def get_appointment_by_email(email: str):
 
     except Exception as e:
         print(f"Erreur dans l'extraction de l'utilisateur: {e}")
-        raise HTTPException(status_code=500, detail=str(e))  # Inclure le message d'erreur
+        raise HTTPException(status_code=500, detail=str(e)) 
 
 
 
@@ -115,7 +115,6 @@ async def create_appointment(email: str, appointment: Appointment):
             }
         )
 
-        # Si un rendez-vous programmé existe déjà, retourner un message d'erreur sans le code HTTP dans le détail
         if search_response['hits']['total']['value'] > 0:
             raise HTTPException(status_code=400, detail="Vous avez déjà un rendez-vous programmé.")
 
@@ -132,7 +131,6 @@ async def create_appointment(email: str, appointment: Appointment):
         return {"message": "Rendez-vous créé avec succès", "appointmentId": response["_id"]}
 
     except HTTPException as http_err:
-        # Capturer l'exception HTTP sans afficher le code d'erreur
         raise HTTPException(status_code=http_err.status_code, detail=http_err.detail)
     
     except Exception as e:
@@ -145,7 +143,7 @@ async def create_appointment(email: str, appointment: Appointment):
 
 def calculate_months_since(date_str):
     if not date_str:
-        return 0  # Ou une autre valeur par défaut
+        return 0  
     date = datetime.strptime(date_str, '%Y-%m-%d')
     current_date = datetime.now()
     years_diff = current_date.year - date.year
