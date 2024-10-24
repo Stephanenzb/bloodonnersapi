@@ -109,11 +109,3 @@ async def predict(data: dict):
 
 
 
-
-
-
-
-
-if __name__ == "__main__":
-    # Uvicorn permet de démarrer le serveur FastAPI
-    uvicorn.run(app, host="0.0.0.0", port=8080)
