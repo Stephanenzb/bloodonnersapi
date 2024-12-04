@@ -63,9 +63,9 @@ async def register_user(user: User):
 
         # Enregistrement dans Elasticsearch
         user_data = {
-            "username" : user.username,
+            "username": user.username,
             "email": user.email,
-            "password": user.password,  
+            "password": user.password,
             "role": user.role,
             "points": 0,
             "donor_history": {
@@ -76,7 +76,40 @@ async def register_user(user: User):
                 "lastDonationDate": None,
                 "monthsSinceLastDonation": None
             },
+            "blood_stats": {
+                "Gender": None,
+                "Hemoglobin": None,
+                "MCH": None,
+                "MCHC": None,
+                "MCV": None,
+                "Pregnancies": None,
+                "Glucose": None,
+                "SkinThickness": None,
+                "Insulin": None,
+                "BMI": None,
+                "DiabetesPedigreeFunction": None,
+                "Age": None,
+                "currentSmoker": None,
+                "cigsPerDay": None,
+                "BPMeds": None,
+                "Cholesterol": None,
+                "heartRate": None,
+                "cp": None,
+                "trestbps": None,
+                "fbs": None,
+                "restecg": None,
+                "thalach": None,
+                "exang": None,
+                "oldpeak": None,
+                "slope": None,
+                "ca": None,
+                "thal": None,
+                "sysBP": None,
+                "diaBP": None,
+                "BloodPressure": None
+            }
         }
+
 
         result = await elastic.index(index="database_users", body=user_data)
         return {"result": "Nouveau compte utilisateur créé", "id": result['_id']}

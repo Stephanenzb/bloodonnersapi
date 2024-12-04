@@ -204,3 +204,46 @@ async def update_donor(email: str, donor_data: dict):
 
 
 
+# ANALYSE SANGUINE
+
+@router.put("/update_blood_stats/{email}")
+async def update_blood_stats(email: str, blood_data: dict):
+    try:
+        # Recherche l'utilisateur par email
+        result = await elastic.search(index="database_users", body={
+            "query": {
+                "match": {
+                    "email": email
+                }
+            }
+        })
+
+        # Vérification si le donneur existe
+        if result['hits']['total']['value'] == 0:
+            raise HTTPException(status_code=404, detail="Donneur non trouvé")
+
+        # Extraction des données du formulaire
+        gender = blood_data.get("Gender")
+        age = blood_data.get("Age")
+        current_smoker = blood_data.get("currentSmoker")
+        cigs_per_day = blood_data.get("cigsPerDay")
+
+        # Recherche de l'ID du document dans Elasticsearch
+        doc_id = result['hits']['hits'][0]['_id']
+
+        # Mise à jour des données de l'utilisateur dans Elasticsearch
+        update_response = await elastic.update(index="database_users", id=doc_id, body={
+            "doc": {
+                "blood_stats": {
+                    "Gender": gender,              # Sexe de l'utilisateur
+                    "Age": age,                    # Âge de l'utilisateur
+                    "currentSmoker": current_smoker,  # Fumeur actuel (oui ou non)
+                    "cigsPerDay": cigs_per_day       # Nombre de cigarettes par jour
+                }
+            }
+        })
+
+        return {"message": f"Les informations de {email} ont été mises à jour avec succès."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour: " + str(e))
