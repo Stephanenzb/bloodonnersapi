@@ -19,8 +19,8 @@ router = APIRouter()
 
 # Connexion à Elasticsearch
 elastic = Elasticsearch(
-    cloud_id="b01a042efef84182a85f799130f733f5:ZXVyb3BlLXdlc3QzLmdjcC5jbG91ZC5lcy5pbzo0NDMkNTU3NDM0YTQxNDI0NGVlYzk0NDUzZWM2YWIxZjc3N2EkNWY1ZDA0ZjVkMDAwNDc2MGFjOWUwMjYyZTk0ZTBjZjI=",
-    http_auth=("elastic", "bvfN5fngmOAhCViV4cuVcHIX"),
+    cloud_id="PA2024:ZXVyb3BlLXdlc3Q5LmdjcC5lbGFzdGljLWNsb3VkLmNvbSQ4Yjk5MjQxNjBmNjc0ODdmYjViMTJlZDhiNmIxYWVlZSQyOThmMDU0ZjE2YjQ0NmMzOThkMzMzNjE1MzZhNDlmMg==",
+    http_auth=("elastic", "6EPhppu8hMfSwYZ9reTWfFnv"),
 )
 
 # PAGE ADMIN HOME
@@ -279,6 +279,61 @@ async def update_appointment(donorEmail: str, updatedData: dict):
             )
 
     return {"message": "Rendez-vous et données du donneur mis à jour"}
+
+
+@router.get("/centers")
+def get_centers():
+    try:
+        # Requête pour récupérer tous les documents
+        response = elastic.search(
+            index="health_centers",
+            scroll="2m",  # Durée pendant laquelle le scroll reste actif
+            body={"query": {"match_all": {}}},
+            size=1000  # Nombre de documents par batch
+        )
+
+        scroll_id = response["_scroll_id"]
+        hits = response["hits"]["hits"]
+
+        # Récupérer tous les documents
+        all_centers = [
+            {
+                "id": hit["_id"],
+                "name": hit["_source"].get("index", {}).get("name", ""),
+                "amenity": hit["_source"].get("index", {}).get("amenity", ""),
+                "location": hit["_source"].get("index", {}).get("location", {}),
+                "geometry": hit["_source"].get("index", {}).get("geometry", {}),
+                "region": hit["_source"].get("index", {}).get("region", ""),
+                "address": hit["_source"].get("index", {}).get("address", ""),
+                "updated_at": hit["_source"].get("index", {}).get("updated_at", "")
+            }
+            for hit in hits
+        ]
+
+        while len(hits) > 0:
+            response = elastic.scroll(scroll_id=scroll_id, scroll="2m")
+            hits = response["hits"]["hits"]
+            all_centers.extend([
+                {
+                    "id": hit["_id"],
+                    "name": hit["_source"].get("index", {}).get("name", ""),
+                    "amenity": hit["_source"].get("index", {}).get("amenity", ""),
+                    "location": hit["_source"].get("index", {}).get("location", {}),
+                    "geometry": hit["_source"].get("index", {}).get("geometry", {}),
+                    "region": hit["_source"].get("index", {}).get("region", ""),
+                    "address": hit["_source"].get("index", {}).get("address", ""),
+                    "updated_at": hit["_source"].get("index", {}).get("updated_at", "")
+                }
+                for hit in hits
+            ])
+
+        return {"success": True, "data": all_centers}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+
 
 
 

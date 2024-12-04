@@ -16,8 +16,8 @@ router = APIRouter()
 
 # Connexion à Elasticsearch
 elastic = AsyncElasticsearch(
-    cloud_id="b01a042efef84182a85f799130f733f5:ZXVyb3BlLXdlc3QzLmdjcC5jbG91ZC5lcy5pbzo0NDMkNTU3NDM0YTQxNDI0NGVlYzk0NDUzZWM2YWIxZjc3N2EkNWY1ZDA0ZjVkMDAwNDc2MGFjOWUwMjYyZTk0ZTBjZjI=",
-    http_auth=("elastic", "bvfN5fngmOAhCViV4cuVcHIX"),
+    cloud_id="PA2024:ZXVyb3BlLXdlc3Q5LmdjcC5lbGFzdGljLWNsb3VkLmNvbSQ4Yjk5MjQxNjBmNjc0ODdmYjViMTJlZDhiNmIxYWVlZSQyOThmMDU0ZjE2YjQ0NmMzOThkMzMzNjE1MzZhNDlmMg==",
+    http_auth=("elastic", "6EPhppu8hMfSwYZ9reTWfFnv"),
 )
 
 
