@@ -199,12 +199,6 @@ async def disease_prediction(data: dict):
     except Exception as e:
         # Gestion des erreurs
         raise HTTPException(status_code=400, detail=str(e))
-    
-
-@app.get("/test")
-async def test():
-    return {"message": "Test endpoint"}
-
 
 
 
