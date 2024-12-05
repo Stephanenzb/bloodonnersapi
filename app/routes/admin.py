@@ -59,29 +59,42 @@ async def get_top3_donors():
 
 # AFFICHAGE DE LA LISTE DES DONNEURS 
 @router.get("/admin/donors")
-async def get_donors():
+async def get_all_donors():
     try:
-        result = elastic.search(index="database_users", body={
-            "query": {
-                "match": {
-                    "role": "donor"
+        # Initialisation de la recherche avec Scroll
+        result = elastic.search(
+            index="database_users",
+            body={
+                "query": {
+                    "match": {
+                        "role": "donor"
+                    }
                 }
-            }
-        })
+            },
+            scroll="1m",  
+            size=1000     
+        )
 
-        print("Les donneurs trouvés :", result['hits']['total']['value'])  
+        donors = []  
+        scroll_id = result['_scroll_id']  
+        hits = result['hits']['hits']    
 
-        donors = []
-        for hit in result['hits']['hits']:
-            source = hit["_source"]
-            donors.append(source)  
+        # Boucle pour récupérer tous les documents
+        while hits:
+            for hit in hits:
+                donors.append(hit["_source"]) 
 
-        return {"donors": donors}
+            # Continuer le scroll pour récupérer le prochain bloc
+            result = elastic.scroll(scroll_id=scroll_id, scroll="1m")
+            scroll_id = result['_scroll_id']
+            hits = result['hits']['hits']  
+
+        return {"donors": donors}  
 
     except Exception as e:
         print(f"Erreur dans l'extraction des donateurs: {e}")
         return {"Erreur": "Erreur du serveur interne"}, 500
-    
+
 
 
 
@@ -287,9 +300,9 @@ def get_centers():
         # Requête pour récupérer tous les documents
         response = elastic.search(
             index="health_centers",
-            scroll="2m",  # Durée pendant laquelle le scroll reste actif
+            scroll="2m",  
             body={"query": {"match_all": {}}},
-            size=1000  # Nombre de documents par batch
+            size=1000  
         )
 
         scroll_id = response["_scroll_id"]
